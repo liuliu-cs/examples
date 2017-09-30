@@ -2,6 +2,7 @@ import argparse
 import os
 import shutil
 import time
+import json
 
 import torch
 import torch.nn as nn
@@ -13,7 +14,9 @@ import torch.utils.data
 import torch.utils.data.distributed
 import torchvision.transforms as transforms
 import torchvision.datasets as datasets
-import torchvision.models as models
+# import torchvision.models as models
+from models import *
+from utils import progress_bar
 
 model_names = sorted(name for name in models.__dict__
     if name.islower() and not name.startswith("__")
@@ -41,6 +44,8 @@ parser.add_argument('--momentum', default=0.9, type=float, metavar='M',
                     help='momentum')
 parser.add_argument('--weight-decay', '--wd', default=1e-4, type=float,
                     metavar='W', help='weight decay (default: 1e-4)')
+parser.add_argument('--seed', type=int, default=123456, metavar='S',
+                    help='random seed (default: 123456)')
 parser.add_argument('--print-freq', '-p', default=10, type=int,
                     metavar='N', help='print frequency (default: 10)')
 parser.add_argument('--resume', default='', type=str, metavar='PATH',
@@ -55,19 +60,30 @@ parser.add_argument('--dist-url', default='tcp://224.66.41.62:23456', type=str,
                     help='url used to set up distributed training')
 parser.add_argument('--dist-backend', default='gloo', type=str,
                     help='distributed backend')
+parser.add_argument('--plot', default='results', type=str,
+                    help='specify the filename of plot')
 
 best_prec1 = 0
-
+use_cuda = torch.cuda.is_available()
 
 def main():
     global args, best_prec1
     args = parser.parse_args()
+    filename = args.plot
+
+    log_loss = {'train': [], 'val': []}
+    log_acc = {'train_prec1': [], 'train_prec5': [],
+        'val_prec1': [], 'val_prec5': []}
 
     args.distributed = args.world_size > 1
 
     if args.distributed:
         dist.init_process_group(backend=args.dist_backend, init_method=args.dist_url,
                                 world_size=args.world_size)
+    if use_cuda:
+        torch.cuda.manual_seed(args.seed)
+    else:
+        torch.manual_seed(args.seed)
 
     # create model
     if args.pretrained:
@@ -154,10 +170,17 @@ def main():
         adjust_learning_rate(optimizer, epoch)
 
         # train for one epoch
-        train(train_loader, model, criterion, optimizer, epoch)
+        train_loss, train_top1, train_top5 = train(train_loader, model, criterion, optimizer, epoch)
 
         # evaluate on validation set
-        prec1 = validate(val_loader, model, criterion)
+        val_loss, prec1, prec5 = validate(val_loader, model, criterion)
+
+        log_loss['train'].append(train_loss)
+        log_loss['val'].append(val_loss)
+        log_acc['train_prec1'].append(train_top1)
+        log_acc['train_prec5'].append(train_top5)
+        log_acc['val_prec1'].append(prec1)
+        log_acc['val_prec5'].append(prec5)
 
         # remember best prec@1 and save checkpoint
         is_best = prec1 > best_prec1
@@ -170,6 +193,14 @@ def main():
             'optimizer' : optimizer.state_dict(),
         }, is_best)
 
+    f = open(filename, 'w')
+    json.dump({'train_loss': log_loss['train'],
+                'val_loss': log_loss['val'],
+                'train_top1': log_acc['train_prec1'],
+                'train_top5': log_acc['train_prec5'],
+                'val_top1': log_acc['val_prec1'],
+                'val_top5': log_acc['val_prec5']})
+    f.close()
 
 def train(train_loader, model, criterion, optimizer, epoch):
     batch_time = AverageMeter()
@@ -218,7 +249,7 @@ def train(train_loader, model, criterion, optimizer, epoch):
                   'Prec@5 {top5.val:.3f} ({top5.avg:.3f})'.format(
                    epoch, i, len(train_loader), batch_time=batch_time,
                    data_time=data_time, loss=losses, top1=top1, top5=top5))
-
+       return losses.avg, top1.avg, top5.avg
 
 def validate(val_loader, model, criterion):
     batch_time = AverageMeter()
@@ -261,8 +292,7 @@ def validate(val_loader, model, criterion):
     print(' * Prec@1 {top1.avg:.3f} Prec@5 {top5.avg:.3f}'
           .format(top1=top1, top5=top5))
 
-    return top1.avg
-
+    return losses.avg, top1.avg, top5.avg
 
 def save_checkpoint(state, is_best, filename='checkpoint.pth.tar'):
     torch.save(state, filename)
