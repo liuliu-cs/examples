@@ -12,11 +12,12 @@ import torch.distributed as dist
 import torch.optim
 import torch.utils.data
 import torch.utils.data.distributed
+import torchvision
 import torchvision.transforms as transforms
 import torchvision.datasets as datasets
 # import torchvision.models as models
-from models import *
-from utils import progress_bar
+import models
+# from utils import progress_bar
 
 model_names = sorted(name for name in models.__dict__
     if name.islower() and not name.startswith("__")
@@ -199,7 +200,7 @@ def main():
                 'train_top1': log_acc['train_prec1'],
                 'train_top5': log_acc['train_prec5'],
                 'val_top1': log_acc['val_prec1'],
-                'val_top5': log_acc['val_prec5']})
+                'val_top5': log_acc['val_prec5']}, f)
     f.close()
 
 def train(train_loader, model, criterion, optimizer, epoch):
@@ -249,7 +250,8 @@ def train(train_loader, model, criterion, optimizer, epoch):
                   'Prec@5 {top5.val:.3f} ({top5.avg:.3f})'.format(
                    epoch, i, len(train_loader), batch_time=batch_time,
                    data_time=data_time, loss=losses, top1=top1, top5=top5))
-   return losses.avg, top1.avg, top5.avg
+
+    return losses.avg, top1.avg, top5.avg
 
 def validate(val_loader, model, criterion):
     batch_time = AverageMeter()
