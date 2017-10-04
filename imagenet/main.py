@@ -133,9 +133,9 @@ def main():
     train_datafile = os.path.join(datafile, 'train_data_batch_')
     mean_img = load_mean(datafile)
 
-    train_dataset = ImageNetDS(train_datafile, '16x16', 1, mean_img=None, train=True)
-    train_loader = DataLoader(train_dataset, batch_size=args.batch_size,
-                            shuffle=True, num_workers=args.workers)
+    # train_dataset = ImageNetDS(train_datafile, '16x16', 1, mean_img=None, train=True)
+    # train_loader = DataLoader(train_dataset, batch_size=args.batch_size,
+    #                         shuffle=True, num_workers=args.workers)
 
     val_dataset = ImageNetDS(val_datafile, '16x16', 1, mean_img=mean_img, train=False)
     val_loader = DataLoader(val_dataset, batch_size=args.batch_size,
@@ -179,43 +179,49 @@ def main():
         validate(val_loader, model, criterion)
         return
 
-    # for epoch in range(args.start_epoch, args.epochs):
-    #     if args.distributed:
-    #         train_sampler.set_epoch(epoch)
-    #     adjust_learning_rate(optimizer, epoch)
-    #
-    #     # train for one epoch
-    #     train_loss, train_top1, train_top5 = train(train_loader, model, criterion, optimizer, epoch)
-    #
-    #     # evaluate on validation set
-    #     val_loss, prec1, prec5 = validate(val_loader, model, criterion)
-    #
-    #     log_loss['train'].append(train_loss)
-    #     log_loss['val'].append(val_loss)
-    #     log_acc['train_prec1'].append(train_top1)
-    #     log_acc['train_prec5'].append(train_top5)
-    #     log_acc['val_prec1'].append(prec1)
-    #     log_acc['val_prec5'].append(prec5)
-    #
-    #     # remember best prec@1 and save checkpoint
-    #     is_best = prec1 > best_prec1
-    #     best_prec1 = max(prec1, best_prec1)
-    #     save_checkpoint({
-    #         'epoch': epoch + 1,
-    #         'arch': args.arch,
-    #         'state_dict': model.state_dict(),
-    #         'best_prec1': best_prec1,
-    #         'optimizer' : optimizer.state_dict(),
-    #     }, is_best)
-    #
-    # f = open(filename, 'w')
-    # json.dump({'train_loss': log_loss['train'],
-    #             'val_loss': log_loss['val'],
-    #             'train_top1': log_acc['train_prec1'],
-    #             'train_top5': log_acc['train_prec5'],
-    #             'val_top1': log_acc['val_prec1'],
-    #             'val_top5': log_acc['val_prec5']}, f)
-    # f.close()
+    for epoch in range(args.start_epoch, args.epochs):
+        if args.distributed:
+            train_sampler.set_epoch(epoch)
+        adjust_learning_rate(optimizer, epoch)
+
+        # train for one epoch
+        for data_batch_i in range(1, 11):
+            train_dataset = ImageNetDS(train_datafile, '16x16', data_batch_i,
+                                mean_img=None, train=True)
+            train_loader = DataLoader(train_dataset, batch_size=args.batch_size,
+                                shuffle=True, num_workers=args.workers)
+            train_loss, train_top1, train_top5 = train(train_loader, model,
+                                criterion, optimizer, epoch)
+
+        # evaluate on validation set
+        val_loss, prec1, prec5 = validate(val_loader, model, criterion)
+
+        log_loss['train'].append(train_loss)
+        log_loss['val'].append(val_loss)
+        log_acc['train_prec1'].append(train_top1)
+        log_acc['train_prec5'].append(train_top5)
+        log_acc['val_prec1'].append(prec1)
+        log_acc['val_prec5'].append(prec5)
+
+        # remember best prec@1 and save checkpoint
+        is_best = prec1 > best_prec1
+        best_prec1 = max(prec1, best_prec1)
+        save_checkpoint({
+            'epoch': epoch + 1,
+            'arch': args.arch,
+            'state_dict': model.state_dict(),
+            'best_prec1': best_prec1,
+            'optimizer' : optimizer.state_dict(),
+        }, is_best)
+
+    f = open(filename, 'w')
+    json.dump({'train_loss': log_loss['train'],
+                'val_loss': log_loss['val'],
+                'train_top1': log_acc['train_prec1'],
+                'train_top5': log_acc['train_prec5'],
+                'val_top1': log_acc['val_prec1'],
+                'val_top5': log_acc['val_prec5']}, f)
+    f.close()
 
 def train(train_loader, model, criterion, optimizer, epoch):
     batch_time = AverageMeter()
@@ -228,7 +234,10 @@ def train(train_loader, model, criterion, optimizer, epoch):
     model.train()
 
     end = time.time()
-    for i, (input, target) in enumerate(train_loader):
+    # for i, (input, target) in enumerate(train_loader):
+    for i, sample_batched in enumerate(train_loader):
+        input = sample_batched['image']
+        target = sample_batched['label']
         # measure data loading time
         data_time.update(time.time() - end)
 
