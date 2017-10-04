@@ -82,3 +82,4 @@ from .vgg import *
 from .squeezenet import *
 from .inception import *
 from .densenet import *
+from .inceptionDS import *

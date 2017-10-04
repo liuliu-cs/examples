@@ -17,6 +17,7 @@ import torchvision.transforms as transforms
 import torchvision.datasets as datasets
 # import torchvision.models as models
 import models
+from utils import *
 # from utils import progress_bar
 
 model_names = sorted(name for name in models.__dict__
@@ -24,7 +25,7 @@ model_names = sorted(name for name in models.__dict__
     and callable(models.__dict__[name]))
 
 parser = argparse.ArgumentParser(description='PyTorch ImageNet Training')
-parser.add_argument('data', metavar='DIR',
+parser.add_argument('--data-folder', '-d',
                     help='path to dataset')
 parser.add_argument('--arch', '-a', metavar='ARCH', default='resnet18',
                     choices=model_names,
@@ -127,81 +128,94 @@ def main():
 
     cudnn.benchmark = True
 
-    # Data loading code
-    traindir = os.path.join(args.data, 'train')
-    valdir = os.path.join(args.data, 'val')
-    normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                                     std=[0.229, 0.224, 0.225])
+    datafile = args.data_folder
+    val_datafile = os.path.join(datafile, 'val_data')
+    train_datafile = os.path.join(datafile, 'train_data_batch_')
+    mean_img = load_mean(datafile)
 
-    train_dataset = datasets.ImageFolder(
-        traindir,
-        transforms.Compose([
-            transforms.RandomSizedCrop(224),
-            transforms.RandomHorizontalFlip(),
-            transforms.ToTensor(),
-            normalize,
-        ]))
+    train_dataset = ImageNetDS(train_datafile, '16x16', 1, mean_img=None, train=True)
+    train_loader = DataLoader(train_dataset, batch_size=args.batch_size,
+                            shuffle=True, num_workers=args.workers)
 
-    if args.distributed:
-        train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset)
-    else:
-        train_sampler = None
+    val_dataset = ImageNetDS(val_datafile, '16x16', 1, mean_img=mean_img, train=False)
+    val_loader = DataLoader(val_dataset, batch_size=args.batch_size,
+                            shuffle=False, num_workers=args.workers)
 
-    train_loader = torch.utils.data.DataLoader(
-        train_dataset, batch_size=args.batch_size, shuffle=(train_sampler is None),
-        num_workers=args.workers, pin_memory=True, sampler=train_sampler)
-
-    val_loader = torch.utils.data.DataLoader(
-        datasets.ImageFolder(valdir, transforms.Compose([
-            transforms.Scale(256),
-            transforms.CenterCrop(224),
-            transforms.ToTensor(),
-            normalize,
-        ])),
-        batch_size=args.batch_size, shuffle=False,
-        num_workers=args.workers, pin_memory=True)
+    # # Data loading code
+    # traindir = os.path.join(args.data, 'train')
+    # valdir = os.path.join(args.data, 'val')
+    # normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
+    #                                  std=[0.229, 0.224, 0.225])
+    #
+    # train_dataset = datasets.ImageFolder(
+    #     traindir,
+    #     transforms.Compose([
+    #         transforms.RandomSizedCrop(224),
+    #         transforms.RandomHorizontalFlip(),
+    #         transforms.ToTensor(),
+    #         normalize,
+    #     ]))
+    #
+    # if args.distributed:
+    #     train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset)
+    # else:
+    #     train_sampler = None
+    #
+    # train_loader = torch.utils.data.DataLoader(
+    #     train_dataset, batch_size=args.batch_size, shuffle=(train_sampler is None),
+    #     num_workers=args.workers, pin_memory=True, sampler=train_sampler)
+    #
+    # val_loader = torch.utils.data.DataLoader(
+    #     datasets.ImageFolder(valdir, transforms.Compose([
+    #         transforms.Scale(256),
+    #         transforms.CenterCrop(224),
+    #         transforms.ToTensor(),
+    #         normalize,
+    #     ])),
+    #     batch_size=args.batch_size, shuffle=False,
+    #     num_workers=args.workers, pin_memory=True)
 
     if args.evaluate:
         validate(val_loader, model, criterion)
         return
 
-    for epoch in range(args.start_epoch, args.epochs):
-        if args.distributed:
-            train_sampler.set_epoch(epoch)
-        adjust_learning_rate(optimizer, epoch)
-
-        # train for one epoch
-        train_loss, train_top1, train_top5 = train(train_loader, model, criterion, optimizer, epoch)
-
-        # evaluate on validation set
-        val_loss, prec1, prec5 = validate(val_loader, model, criterion)
-
-        log_loss['train'].append(train_loss)
-        log_loss['val'].append(val_loss)
-        log_acc['train_prec1'].append(train_top1)
-        log_acc['train_prec5'].append(train_top5)
-        log_acc['val_prec1'].append(prec1)
-        log_acc['val_prec5'].append(prec5)
-
-        # remember best prec@1 and save checkpoint
-        is_best = prec1 > best_prec1
-        best_prec1 = max(prec1, best_prec1)
-        save_checkpoint({
-            'epoch': epoch + 1,
-            'arch': args.arch,
-            'state_dict': model.state_dict(),
-            'best_prec1': best_prec1,
-            'optimizer' : optimizer.state_dict(),
-        }, is_best)
-
-    f = open(filename, 'w')
-    json.dump({'train_loss': log_loss['train'],
-                'val_loss': log_loss['val'],
-                'train_top1': log_acc['train_prec1'],
-                'train_top5': log_acc['train_prec5'],
-                'val_top1': log_acc['val_prec1'],
-                'val_top5': log_acc['val_prec5']}, f)
-    f.close()
+    # for epoch in range(args.start_epoch, args.epochs):
+    #     if args.distributed:
+    #         train_sampler.set_epoch(epoch)
+    #     adjust_learning_rate(optimizer, epoch)
+    #
+    #     # train for one epoch
+    #     train_loss, train_top1, train_top5 = train(train_loader, model, criterion, optimizer, epoch)
+    #
+    #     # evaluate on validation set
+    #     val_loss, prec1, prec5 = validate(val_loader, model, criterion)
+    #
+    #     log_loss['train'].append(train_loss)
+    #     log_loss['val'].append(val_loss)
+    #     log_acc['train_prec1'].append(train_top1)
+    #     log_acc['train_prec5'].append(train_top5)
+    #     log_acc['val_prec1'].append(prec1)
+    #     log_acc['val_prec5'].append(prec5)
+    #
+    #     # remember best prec@1 and save checkpoint
+    #     is_best = prec1 > best_prec1
+    #     best_prec1 = max(prec1, best_prec1)
+    #     save_checkpoint({
+    #         'epoch': epoch + 1,
+    #         'arch': args.arch,
+    #         'state_dict': model.state_dict(),
+    #         'best_prec1': best_prec1,
+    #         'optimizer' : optimizer.state_dict(),
+    #     }, is_best)
+    #
+    # f = open(filename, 'w')
+    # json.dump({'train_loss': log_loss['train'],
+    #             'val_loss': log_loss['val'],
+    #             'train_top1': log_acc['train_prec1'],
+    #             'train_top5': log_acc['train_prec5'],
+    #             'val_top1': log_acc['val_prec1'],
+    #             'val_top5': log_acc['val_prec5']}, f)
+    # f.close()
 
 def train(train_loader, model, criterion, optimizer, epoch):
     batch_time = AverageMeter()
@@ -263,7 +277,9 @@ def validate(val_loader, model, criterion):
     model.eval()
 
     end = time.time()
-    for i, (input, target) in enumerate(val_loader):
+    for i, sample_batched in enumerate(val_loader):
+        input = sample_batched['image']
+        target = sample_batched['label']
         target = target.cuda(async=True)
         input_var = torch.autograd.Variable(input, volatile=True)
         target_var = torch.autograd.Variable(target, volatile=True)
@@ -300,25 +316,6 @@ def save_checkpoint(state, is_best, filename='checkpoint.pth.tar'):
     torch.save(state, filename)
     if is_best:
         shutil.copyfile(filename, 'model_best.pth.tar')
-
-
-class AverageMeter(object):
-    """Computes and stores the average and current value"""
-    def __init__(self):
-        self.reset()
-
-    def reset(self):
-        self.val = 0
-        self.avg = 0
-        self.sum = 0
-        self.count = 0
-
-    def update(self, val, n=1):
-        self.val = val
-        self.sum += val * n
-        self.count += n
-        self.avg = self.sum / self.count
-
 
 def adjust_learning_rate(optimizer, epoch):
     """Sets the learning rate to the initial LR decayed by 10 every 30 epochs"""

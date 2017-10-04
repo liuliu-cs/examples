@@ -70,6 +70,7 @@ use_cuda = torch.cuda.is_available()
 def test():
     global args, best_prec1
     args = parser.parse_args()
+    args.distributed = args.world_size > 1
 
     traindir = os.path.join(args.data, 'train')
     valdir = os.path.join(args.data, 'val')
@@ -105,7 +106,7 @@ def test():
         num_workers=args.workers, pin_memory=True)
 
     for i, (input, target) in enumerate(val_loader):
-        print(i, input.shape, input.dtype, target)
+        print(i, input.shape, input.type, target)
 
 
 if __name__ == '__main__':

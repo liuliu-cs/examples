@@ -1,8 +1,9 @@
 from argparse import ArgumentParser
-import numpy as np
 import os
+import numpy as np
 import matplotlib.pyplot as plt
 import pickle
+import torch
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms, utils
 
@@ -18,75 +19,89 @@ def unpickle(file):
         dict = pickle.load(f)
     return dict
 
+class AverageMeter(object):
+    """Computes and stores the average and current value"""
+    def __init__(self):
+        self.reset()
+
+    def reset(self):
+        self.val = 0
+        self.avg = 0
+        self.sum = 0
+        self.count = 0
+
+    def update(self, val, n=1):
+        self.val = val
+        self.sum += val * n
+        self.count += n
+        self.avg = self.sum / self.count
+
 class ImageNetDS(Dataset):
     """ImageNet downsampled dataset."""
-    def __init__(self, datafile, img_size, transform=None):
+    def __init__(self, datafile, img_size, idx, mean_img=None, train=False):
         super(ImageNetDS, self).__init__()
-        self.datafile = datafile
         self.img_size = img_size
-        self.img_dict = unpickle(self.datafile)
-        self.transform = transform
-        self.x = self.img_dict['data']
-        self.y = self.img_dict['labels']
-        self.x = self.x/np.float32(255)
-        self.y = [i-1 for i in self.y]
+        if train:
+            self.img_dict = unpickle(datafile + str(idx))
+            self.mean_img = self.img_dict['mean']
+        else:
+            self.img_dict = unpickle(datafile)
+            self.mean_img = mean_img
+        self.image = self.img_dict['data']
+        self.label = self.img_dict['labels']
+        self.transform()
+
+    def transform(self):
+        # image, label = sample['image'], sample['label']
+        # normalize
+        self.image = self.image / np.float32(255)
+        self.label = np.array([i-1 for i in self.label])
+        # remove mean from images, computed from training data
+        self.image -= self.mean_img
 
         if self.img_size == '32x32':
-            self.x = np.dstack((self.x[:,:1024], self.x[:, 1024:2048], self.x[:, 2048:]))
-            self.x = self.x.reshape((self.x.shape[0], 32, 32, 3))
+            self.image = np.dstack((self.image[:,:1024], self.image[:, 1024:2048], self.image[:, 2048:]))
+            self.image = self.image.reshape((self.image.shape[0], 32, 32, 3)).transpose(0, 3, 1, 2)
         elif self.img_size =='16x16':
-            self.x = np.dstack((self.x[:,:256], self.x[:, 256:512], self.x[:, 512:]))
-            self.x = self.x.reshape((self.x.shape[0], 16, 16, 3))
+            self.image = np.dstack((self.image[:,:256], self.image[:, 256:512], self.image[:, 512:]))
+            self.image = self.image.reshape((self.image.shape[0], 16, 16, 3)).transpose(0, 3, 1, 2)
         else:
             raise NotImplementedError
+        self.image = torch.from_numpy(self.image)
+        self.label = torch.from_numpy(self.label)
 
     def __len__(self):
         return len(self.img_dict['data'])
 
     def __getitem__(self, idx):
-        sample = {'image': self.x[idx],
-                    'label': self.y[idx]}
-        if self.transform:
-            sample = self.transform(sample)
-        return sample
+        return {'image': self.image[idx], 'label': self.label[idx]}
 
-def load_data(data_folder, img_size):
-    val_data = os.path.join(data_folder, 'val_data')
-    d = unpickle(val_data)
-    x = d['data']
-    y = d['labels']
-    print('x length: ', len(x))
 
-    if img_size == '32x32':
-        x = np.dstack((x[:,:1024], x[:, 1024:2048], x[:, 2048:]))
-        x = x.reshape((x.shape[0], 32, 32, 3))
-    elif img_size =='16x16':
-        x = np.dstack((x[:,:256], x[:, 256:512], x[:, 512:]))
-        x = x.reshape((x.shape[0], 16, 16, 3))
-    else:
-        raise NotImplementedError
-
-    return x, y
+def load_mean(data_folder):
+    datafile = os.path.join(data_folder, 'train_data_batch_1')
+    d = unpickle(datafile)
+    mean = d['mean']
+    mean = mean / np.float32(255)
+    return mean
 
 if __name__ == '__main__':
     data_folder = parse_arguments()
     val_data = os.path.join(data_folder, 'val_data')
+    train_datafile = os.path.join(data_folder, 'train_data_batch_')
+    mean_img = load_mean(data_folder)
 
-    val_dataset = ImageNetDS(val_data, '16x16')
-    for i in range(len(val_dataset)):
-        sample = val_dataset[i]
-        print(i, sample['image'].shape, sample['image'].dtype, sample['label'])
+    train_dataset = ImageNetDS(train_datafile, '16x16', 1, mean_img=None, train=True)
+    train_loader = DataLoader(train_dataset, batch_size=256,
+                            shuffle=True, num_workers=8)
 
-    plt.imshow(val_dataset[1]['image'])
+    val_dataset = ImageNetDS(val_data, '16x16', 1, mean_img=mean_img, train=False)
+    val_loader = DataLoader(val_dataset, batch_size=4,
+                                shuffle=False, num_workers=4)
 
-    # x, y = load_data(input_file, '16x16')
+    for i, sample_batched in enumerate(train_loader):
+        print(i, sample_batched['image'].shape, sample_batched['image'].type,
+            sample_batched['label'])
+        if i == 3:
+            break
 
-    # Lets save all images from this file
-    # Each image will be 3600x3600 pixels (10 000) images
-
-    blank_image = None
-    curr_index = 0
-    image_index = 0
-
-    # print('First image in dataset:')
-    # print(x[curr_index].shape)
+    print('mini-batch number: ', len(train_loader))
