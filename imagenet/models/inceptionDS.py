@@ -74,66 +74,47 @@ class Inception3_DS(nn.Module):
             x[:, 0] = x[:, 0] * (0.229 / 0.5) + (0.485 - 0.5) / 0.5
             x[:, 1] = x[:, 1] * (0.224 / 0.5) + (0.456 - 0.5) / 0.5
             x[:, 2] = x[:, 2] * (0.225 / 0.5) + (0.406 - 0.5) / 0.5
-        print('input image: ', x.size())
         # 299 x 299 x 3  16x16x3
         x = self.Conv2d_1a_3x3(x)
-        print('1a_3x3 ', x.size())
         # 149 x 149 x 32 14x14x32
         x = self.Conv2d_2a_3x3(x)
-        print('2a', x.size())
         # 147 x 147 x 32 12x12x32
         x = self.Conv2d_2b_3x3(x)
-        print('2b', x.size())
         # 147 x 147 x 64 12x12x64
         # x = F.max_pool2d(x, kernel_size=3, stride=1)
         # 73 x 73 x 64   12x12x64
         x = self.Conv2d_3b_1x1(x)
-        print('3b', x.size())
         # 73 x 73 x 80   12x12x80
         x = self.Conv2d_4a_3x3(x)
-        print('4a', x.size())
         # 71 x 71 x 192  10x10x192
         # x = F.max_pool2d(x, kernel_size=3, stride=1)
         # 35 x 35 x 192  10x10x192
         x = self.Mixed_5b(x)
-        print('5b', x.size())
         # 35 x 35 x 256  10x10x256
         x = self.Mixed_5c(x)
-        print('5c', x.size())
         # 35 x 35 x 288  10x10x288
         x = self.Mixed_5d(x)
-        print('5d', x.size())
         # 35 x 35 x 288  10x10x288
         x = self.Mixed_6a(x)
-        print('6a', x.size())
         # 17 x 17 x 768  4x4x768
         x = self.Mixed_6b(x)
-        print('6b', x.size())
         # 17 x 17 x 768  4x4x768
         x = self.Mixed_6c(x)
-        print('6c', x.size())
         # 17 x 17 x 768  4x4x768
         x = self.Mixed_6d(x)
-        print('6d', x.size())
         # 17 x 17 x 768  4x4x768
         x = self.Mixed_6e(x)
-        print('6e', x.size())
         # 17 x 17 x 768  4x4x768
         if self.training and self.aux_logits:
             aux = self.AuxLogits(x)
         # 17 x 17 x 768  4x4x768
-        print('aux', x.size())
         x = self.Mixed_7a(x)
-        print('7a', x.size())
         # 8 x 8 x 1280   4x4x1280
         x = self.Mixed_7b(x)
-        print('7b', x.size())
         # 8 x 8 x 2048   4x4x2048
         x = self.Mixed_7c(x)
-        print('7c', x.size())
         # 8 x 8 x 2048   4x4x2048
         x = F.avg_pool2d(x, kernel_size=2)
-        print('avg', x.size())
         # 1 x 1 x 2048   1x1x2048
         x = F.dropout(x, training=self.training)
         # 1 x 1 x 2048
