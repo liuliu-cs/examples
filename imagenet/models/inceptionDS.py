@@ -78,50 +78,50 @@ class Inception3_DS(nn.Module):
         # 299 x 299 x 3  16x16x3
         x = self.Conv2d_1a_3x3(x)
         print('1a_3x3 ', x.size())
-        # 149 x 149 x 32 16x16x32
+        # 149 x 149 x 32 14x14x32
         x = self.Conv2d_2a_3x3(x)
         print('2a', x.size())
-        # 147 x 147 x 32 15x15x32
+        # 147 x 147 x 32 12x12x32
         x = self.Conv2d_2b_3x3(x)
         print('2b', x.size())
-        # 147 x 147 x 64 15x15x64
+        # 147 x 147 x 64 12x12x64
         # x = F.max_pool2d(x, kernel_size=3, stride=1)
-        # 73 x 73 x 64   15x15x64
+        # 73 x 73 x 64   12x12x64
         x = self.Conv2d_3b_1x1(x)
         print('3b', x.size())
-        # 73 x 73 x 80   15x15x80
+        # 73 x 73 x 80   12x12x80
         x = self.Conv2d_4a_3x3(x)
         print('4a', x.size())
-        # 71 x 71 x 192  15x15x192
+        # 71 x 71 x 192  10x10x192
         # x = F.max_pool2d(x, kernel_size=3, stride=1)
-        # 35 x 35 x 192  15x15x192
+        # 35 x 35 x 192  10x10x192
         x = self.Mixed_5b(x)
         print('5b', x.size())
-        # 35 x 35 x 256  15x15x256
+        # 35 x 35 x 256  10x10x256
         x = self.Mixed_5c(x)
         print('5c', x.size())
-        # 35 x 35 x 288  15x15x288
+        # 35 x 35 x 288  10x10x288
         x = self.Mixed_5d(x)
         print('5d', x.size())
-        # 35 x 35 x 288  15x15x288
+        # 35 x 35 x 288  10x10x288
         x = self.Mixed_6a(x)
         print('6a', x.size())
-        # 17 x 17 x 768  7x7x768
+        # 17 x 17 x 768  4x4x768
         x = self.Mixed_6b(x)
         print('6b', x.size())
-        # 17 x 17 x 768  7x7x768
+        # 17 x 17 x 768  4x4x768
         x = self.Mixed_6c(x)
         print('6c', x.size())
-        # 17 x 17 x 768  7x7x768
+        # 17 x 17 x 768  4x4x768
         x = self.Mixed_6d(x)
         print('6d', x.size())
-        # 17 x 17 x 768  7x7x768
+        # 17 x 17 x 768  4x4x768
         x = self.Mixed_6e(x)
         print('6e', x.size())
-        # 17 x 17 x 768  7x7x768
+        # 17 x 17 x 768  4x4x768
         if self.training and self.aux_logits:
             aux = self.AuxLogits(x)
-        # 17 x 17 x 768  7x7x768
+        # 17 x 17 x 768  4x4x768
         print('aux', x.size())
         x = self.Mixed_7a(x)
         print('7a', x.size())
@@ -241,16 +241,16 @@ class InceptionC(nn.Module):
 
 
 class InceptionD(nn.Module):
-
+# modified, set stride to 1
     def __init__(self, in_channels):
         super(InceptionD, self).__init__()
         self.branch3x3_1 = BasicConv2d(in_channels, 192, kernel_size=1)
-        self.branch3x3_2 = BasicConv2d(192, 320, kernel_size=3, stride=2)
+        self.branch3x3_2 = BasicConv2d(192, 320, kernel_size=3, stride=1)
 
         self.branch7x7x3_1 = BasicConv2d(in_channels, 192, kernel_size=1)
         self.branch7x7x3_2 = BasicConv2d(192, 192, kernel_size=(1, 7), padding=(0, 3))
         self.branch7x7x3_3 = BasicConv2d(192, 192, kernel_size=(7, 1), padding=(3, 0))
-        self.branch7x7x3_4 = BasicConv2d(192, 192, kernel_size=3, stride=2)
+        self.branch7x7x3_4 = BasicConv2d(192, 192, kernel_size=3, stride=1)
 
     def forward(self, x):
         branch3x3 = self.branch3x3_1(x)
@@ -261,7 +261,7 @@ class InceptionD(nn.Module):
         branch7x7x3 = self.branch7x7x3_3(branch7x7x3)
         branch7x7x3 = self.branch7x7x3_4(branch7x7x3)
 
-        branch_pool = F.max_pool2d(x, kernel_size=3, stride=2)
+        branch_pool = F.max_pool2d(x, kernel_size=3, stride=1)
         outputs = [branch3x3, branch7x7x3, branch_pool]
         return torch.cat(outputs, 1)
 
