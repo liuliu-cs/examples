@@ -108,18 +108,18 @@ class Inception3_DS(nn.Module):
         if self.training and self.aux_logits:
             aux = self.AuxLogits(x)
         # 17 x 17 x 768  7x7x768
-        print(x.shape)
+        print(x.size())
         x = self.Mixed_7a(x)
-        print(x.shape)
+        print(x.size())
         # 8 x 8 x 1280   4x4x1280
         x = self.Mixed_7b(x)
-        print(x.shape)
+        print(x.size())
         # 8 x 8 x 2048   4x4x2048
         x = self.Mixed_7c(x)
-        print(x.shape)
+        print(x.size())
         # 8 x 8 x 2048   4x4x2048
         x = F.avg_pool2d(x, kernel_size=4)
-        print(x.shape)
+        print(x.size())
         # 1 x 1 x 2048   1x1x2048
         x = F.dropout(x, training=self.training)
         # 1 x 1 x 2048
