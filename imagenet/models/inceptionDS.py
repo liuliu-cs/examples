@@ -32,7 +32,7 @@ def inception_v3_ds(pretrained=False, **kwargs):
 
 class Inception3_DS(nn.Module):
 
-    def __init__(self, num_classes=1000, aux_logits=True, transform_input=False):
+    def __init__(self, num_classes=1000, aux_logits=False, transform_input=False):
         super(Inception3_DS, self).__init__()
         self.aux_logits = aux_logits
         self.transform_input = transform_input
@@ -294,19 +294,20 @@ class InceptionAux(nn.Module):
     def __init__(self, in_channels, num_classes):
         super(InceptionAux, self).__init__()
         self.conv0 = BasicConv2d(in_channels, 128, kernel_size=1)
-        self.conv1 = BasicConv2d(128, 768, kernel_size=5)
+        # self.conv1 = BasicConv2d(128, 768, kernel_size=5)
+        self.conv1 = BasicConv2d(128, 768, kernel_size=4)
         self.conv1.stddev = 0.01
         self.fc = nn.Linear(768, num_classes)
         self.fc.stddev = 0.001
 
     def forward(self, x):
         # 17 x 17 x 768
-        x = F.avg_pool2d(x, kernel_size=5, stride=3)
-        # 5 x 5 x 768
+        # x = F.avg_pool2d(x, kernel_size=5, stride=3)
+        # 5 x 5 x 768  4x4x768
         x = self.conv0(x)
-        # 5 x 5 x 128
+        # 5 x 5 x 128  4x4x128
         x = self.conv1(x)
-        # 1 x 1 x 768
+        # 1 x 1 x 768  1x1x768
         x = x.view(x.size(0), -1)
         # 768
         x = self.fc(x)

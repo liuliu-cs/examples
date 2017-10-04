@@ -191,7 +191,7 @@ def main():
             train_loader = DataLoader(train_dataset, batch_size=args.batch_size,
                                 shuffle=True, num_workers=args.workers)
             train_loss, train_top1, train_top5 = train(train_loader, model,
-                                criterion, optimizer, epoch)
+                                criterion, optimizer, epoch, data_batch_i)
 
         # evaluate on validation set
         val_loss, prec1, prec5 = validate(val_loader, model, criterion)
@@ -223,7 +223,7 @@ def main():
                 'val_top5': log_acc['val_prec5']}, f)
     f.close()
 
-def train(train_loader, model, criterion, optimizer, epoch):
+def train(train_loader, model, criterion, optimizer, epoch, data_batch_i):
     batch_time = AverageMeter()
     data_time = AverageMeter()
     losses = AverageMeter()
@@ -265,13 +265,13 @@ def train(train_loader, model, criterion, optimizer, epoch):
         end = time.time()
 
         if i % args.print_freq == 0:
-            print('Epoch: [{0}][{1}/{2}]\t'
+            print('Epoch: [{0}][{1}][{2}/{3}]\t'
                   'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
                   'Data {data_time.val:.3f} ({data_time.avg:.3f})\t'
                   'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
                   'Prec@1 {top1.val:.3f} ({top1.avg:.3f})\t'
                   'Prec@5 {top5.val:.3f} ({top5.avg:.3f})'.format(
-                   epoch, i, len(train_loader), batch_time=batch_time,
+                   epoch, data_batch_i, i, len(train_loader), batch_time=batch_time,
                    data_time=data_time, loss=losses, top1=top1, top5=top5))
 
     return losses.avg, top1.avg, top5.avg
@@ -316,8 +316,8 @@ def validate(val_loader, model, criterion):
                    i, len(val_loader), batch_time=batch_time, loss=losses,
                    top1=top1, top5=top5))
 
-    print(' * Prec@1 {top1.avg:.3f} Prec@5 {top5.avg:.3f}'
-          .format(top1=top1, top5=top5))
+    # print(' * Prec@1 {top1.avg:.3f} Prec@5 {top5.avg:.3f}'
+    #       .format(top1=top1, top5=top5))
 
     return losses.avg, top1.avg, top5.avg
 
