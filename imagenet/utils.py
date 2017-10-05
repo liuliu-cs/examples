@@ -44,6 +44,7 @@ class ImageNetDS(Dataset):
         if train:
             self.img_dict = unpickle(datafile + str(idx))
             self.mean_img = self.img_dict['mean']
+            self.mean_img = self.mean_img / np.float32(255)
         else:
             self.img_dict = unpickle(datafile)
             self.mean_img = mean_img
@@ -95,13 +96,15 @@ if __name__ == '__main__':
                             shuffle=True, num_workers=8)
 
     val_dataset = ImageNetDS(val_data, '16x16', 1, mean_img=mean_img, train=False)
-    val_loader = DataLoader(val_dataset, batch_size=4,
+    val_loader = DataLoader(val_dataset, batch_size=256,
                                 shuffle=False, num_workers=4)
 
     for i, sample_batched in enumerate(train_loader):
-        print(i, sample_batched['image'].shape, sample_batched['image'].type,
-            sample_batched['label'])
-        if i == 3:
-            break
+        print('TRAIN',i, sample_batched['image'])
+        if i > 0: break
 
-    print('mini-batch number: ', len(train_loader))
+    for i, sample_batched in enumerate(val_loader):
+        print('VAL', i, sample_batched['image'])
+        if i > 0: break
+
+    # print('mini-batch number: ', len(train_loader))

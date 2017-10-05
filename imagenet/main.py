@@ -128,52 +128,15 @@ def main():
 
     cudnn.benchmark = True
 
+    # Data loading code
     datafile = args.data_folder
     val_datafile = os.path.join(datafile, 'val_data')
     train_datafile = os.path.join(datafile, 'train_data_batch_')
     mean_img = load_mean(datafile)
 
-    # train_dataset = ImageNetDS(train_datafile, '16x16', 1, mean_img=None, train=True)
-    # train_loader = DataLoader(train_dataset, batch_size=args.batch_size,
-    #                         shuffle=True, num_workers=args.workers)
-
     val_dataset = ImageNetDS(val_datafile, '16x16', 1, mean_img=mean_img, train=False)
     val_loader = DataLoader(val_dataset, batch_size=args.batch_size,
                             shuffle=False, num_workers=args.workers)
-
-    # # Data loading code
-    # traindir = os.path.join(args.data, 'train')
-    # valdir = os.path.join(args.data, 'val')
-    # normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
-    #                                  std=[0.229, 0.224, 0.225])
-    #
-    # train_dataset = datasets.ImageFolder(
-    #     traindir,
-    #     transforms.Compose([
-    #         transforms.RandomSizedCrop(224),
-    #         transforms.RandomHorizontalFlip(),
-    #         transforms.ToTensor(),
-    #         normalize,
-    #     ]))
-    #
-    # if args.distributed:
-    #     train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset)
-    # else:
-    #     train_sampler = None
-    #
-    # train_loader = torch.utils.data.DataLoader(
-    #     train_dataset, batch_size=args.batch_size, shuffle=(train_sampler is None),
-    #     num_workers=args.workers, pin_memory=True, sampler=train_sampler)
-    #
-    # val_loader = torch.utils.data.DataLoader(
-    #     datasets.ImageFolder(valdir, transforms.Compose([
-    #         transforms.Scale(256),
-    #         transforms.CenterCrop(224),
-    #         transforms.ToTensor(),
-    #         normalize,
-    #     ])),
-    #     batch_size=args.batch_size, shuffle=False,
-    #     num_workers=args.workers, pin_memory=True)
 
     if args.evaluate:
         validate(val_loader, model, criterion)
