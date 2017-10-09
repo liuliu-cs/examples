@@ -83,4 +83,5 @@ from .squeezenet import *
 from .inception import *
 from .densenet import *
 from .inceptionDS import *
-from .inceptionBlock import *
+from .inceptionDSHalf import *
+from .inceptionDSBlock import *
