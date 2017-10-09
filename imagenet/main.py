@@ -200,12 +200,12 @@ def train(train_loader, model, criterion, optimizer, epoch, data_batch_i):
     end = time.time()
     # for i, (input, target) in enumerate(train_loader):
     for i, sample_batched in enumerate(train_loader):
+        if i > 1: break
         input = sample_batched['image']
         target = sample_batched['label']
         # measure data loading time
         data_time.update(time.time() - end)
 
-        if i > 1: break
 
         target = target.cuda(async=True)
         input_var = torch.autograd.Variable(input)

@@ -96,6 +96,7 @@ class Inception3_DS(nn.Module):
         # x = F.max_pool2d(x, kernel_size=3, stride=1)
         # 35 x 35 x 192  10x10x192
         x = self.Mixed_5b(x)
+        print('Mixed_5b output: ', x.size())
         # 35 x 35 x 256  10x10x256
         x = self.Mixed_5c(x)
         # 35 x 35 x 288  10x10x288
