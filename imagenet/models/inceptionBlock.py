@@ -329,7 +329,7 @@ class BasicConv2d(nn.Module):
         x = self.conv(x)
         x = self.bn(x)
         x = F.relu(x, inplace=True)
-        x, _ = thresholding(x)
+        # x, _ = self.thresholding(x)
         return x
 
     def thresholding(self, x, threshold=0.01):
