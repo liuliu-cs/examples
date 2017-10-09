@@ -148,7 +148,8 @@ def main():
         adjust_learning_rate(optimizer, epoch)
 
         # train for one epoch
-        for data_batch_i in range(1, 11):
+        # for data_batch_i in range(1, 11):
+        for data_batch_i in range(1, 2):
             train_dataset = ImageNetDS(train_datafile, '16x16', data_batch_i,
                                 mean_img=None, train=True)
             train_loader = DataLoader(train_dataset, batch_size=args.batch_size,
@@ -203,6 +204,8 @@ def train(train_loader, model, criterion, optimizer, epoch, data_batch_i):
         target = sample_batched['label']
         # measure data loading time
         data_time.update(time.time() - end)
+
+        if i > 1: break
 
         target = target.cuda(async=True)
         input_var = torch.autograd.Variable(input)
