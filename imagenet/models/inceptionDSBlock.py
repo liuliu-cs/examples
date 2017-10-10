@@ -76,7 +76,6 @@ class Inception3_DS_Block(nn.Module):
             x[:, 2] = x[:, 2] * (0.225 / 0.5) + (0.406 - 0.5) / 0.5
         # 299 x 299 x 3  16x16x3
         x = self.Conv2d_1a_3x3(x)
-        print('1a ', x)
         # 149 x 149 x 32 16x16x32
         x = self.Conv2d_2a_3x3(x)
         # 147 x 147 x 32 15x15x32
@@ -327,13 +326,13 @@ class BasicConv2d(nn.Module):
         x = self.conv(x)
         x = self.bn(x)
         x = F.relu(x, inplace=True)
-        x, _ = self.thresholding(x)
+        x = self.thresholding(x)
         return x
 
     def thresholding(self, x, threshold=0.01):
-        channel_id = []
+        # channel_id = []
         for i in range(self.out_channels):
             if x[:,i,:,:].data.max() < threshold:
                 x[:,i,:,:].data.zero_()
-                channel_id.append(i)
-        return x, channel_id
+                # channel_id.append(i)
+        return x

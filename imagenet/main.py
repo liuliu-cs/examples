@@ -72,6 +72,7 @@ def main():
     global args, best_prec1
     args = parser.parse_args()
     filename = args.plot
+    save_dir = './ckpt'
 
     log_loss = {'train': [], 'val': []}
     log_acc = {'train_prec1': [], 'train_prec5': [],
@@ -148,8 +149,7 @@ def main():
         adjust_learning_rate(optimizer, epoch)
 
         # train for one epoch
-        # for data_batch_i in range(1, 11):
-        for data_batch_i in range(1, 2):
+        for data_batch_i in range(1, 11):
             train_dataset = ImageNetDS(train_datafile, '16x16', data_batch_i,
                                 mean_img=None, train=True)
             train_loader = DataLoader(train_dataset, batch_size=args.batch_size,
@@ -177,6 +177,13 @@ def main():
             'best_prec1': best_prec1,
             'optimizer' : optimizer.state_dict(),
         }, is_best)
+
+        # save model parameters after each epoch
+        save_model({
+            'epoch': epoch + 1,
+            'arch': args.arch,
+            'state_dict': model.state_dict()
+        }, os.path.join(save_dir, '%03d.ckpt' % (epoch + 1)))
 
     f = open(filename, 'w')
     json.dump({'train_loss': log_loss['train'],
@@ -291,6 +298,9 @@ def save_checkpoint(state, is_best, filename='checkpoint.pth.tar'):
     torch.save(state, filename)
     if is_best:
         shutil.copyfile(filename, 'model_best.pth.tar')
+
+def save_model(state, filename):
+    torch.save(state, filename)
 
 def adjust_learning_rate(optimizer, epoch):
     """Sets the learning rate to the initial LR decayed by 10 every 30 epochs"""
