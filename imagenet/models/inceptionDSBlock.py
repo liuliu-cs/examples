@@ -326,13 +326,5 @@ class BasicConv2d(nn.Module):
         x = self.conv(x)
         x = self.bn(x)
         x = F.relu(x, inplace=True)
-        x = self.thresholding(x)
-        return x
-
-    def thresholding(self, x, threshold=0.01):
-        # channel_id = []
-        for i in range(self.out_channels):
-            if x[:,i,:,:].data.max() < threshold:
-                x[:,i,:,:].data.zero_()
-                # channel_id.append(i)
+        x = nn.Threshold(x, 0.01, inplace=True)
         return x
