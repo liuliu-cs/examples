@@ -179,11 +179,11 @@ def main():
         }, is_best)
 
         # save model parameters after each epoch
-        save_model({
-            'epoch': epoch + 1,
-            'arch': args.arch,
-            'state_dict': model.state_dict()
-        }, os.path.join(save_dir, '%03d.ckpt' % (epoch + 1)))
+        # save_model({
+        #     'epoch': epoch + 1,
+        #     'arch': args.arch,
+        #     'state_dict': model.state_dict()
+        # }, os.path.join(save_dir, '%03d.ckpt' % (epoch + 1)))
 
     f = open(filename, 'w')
     json.dump({'train_loss': log_loss['train'],
@@ -259,6 +259,7 @@ def validate(val_loader, model, criterion):
 
     end = time.time()
     for i, sample_batched in enumerate(val_loader):
+        # if i > 1: break
         input = sample_batched['image']
         target = sample_batched['label']
         target = target.cuda(async=True)

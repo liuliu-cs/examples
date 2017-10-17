@@ -84,4 +84,5 @@ from .inception import *
 from .densenet import *
 from .inceptionDS import *
 from .inceptionDSHalf import *
+from .inceptionDSHash import *
 from .inceptionDSBlock import *
