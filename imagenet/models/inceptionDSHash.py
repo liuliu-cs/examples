@@ -36,11 +36,11 @@ class Inception3_DS_Hash(nn.Module):
         super(Inception3_DS_Hash, self).__init__()
         self.aux_logits = aux_logits
         self.transform_input = transform_input
-        self.Conv2d_1a_3x3 = DynamicConv2d(3, 32, kernel_size=3, stride=1, dynamic=True)
-        self.Conv2d_2a_3x3 = BasicConv2d(16, 32, kernel_size=3)
-        self.Conv2d_2b_3x3 = BasicConv2d(32, 64, kernel_size=3, padding=1)
-        self.Conv2d_3b_1x1 = BasicConv2d(64, 80, kernel_size=1)
-        self.Conv2d_4a_3x3 = BasicConv2d(80, 192, kernel_size=3)
+        self.Conv2d_1a_3x3 = DynamicConv2d(3, 32, 5, kernel_size=3, stride=1, dynamic=True)
+        self.Conv2d_2a_3x3 = DynamicConv2d(32, 32, 4, kernel_size=3, stride=1, dynamic=True)
+        self.Conv2d_2b_3x3 = DynamicConv2d(32, 64, 4, kernel_size=3, padding=1, dynamic=True)
+        self.Conv2d_3b_1x1 = DynamicConv2d(64, 80, 12, kernel_size=1, dynamic=True)
+        self.Conv2d_4a_3x3 = DynamicConv2d(80, 192, 4, kernel_size=3, dynamic=True)
         self.Mixed_5b = InceptionA(192, pool_features=32)
         self.Mixed_5c = InceptionA(256, pool_features=64)
         self.Mixed_5d = InceptionA(288, pool_features=64)
@@ -76,9 +76,9 @@ class Inception3_DS_Hash(nn.Module):
             x[:, 2] = x[:, 2] * (0.225 / 0.5) + (0.406 - 0.5) / 0.5
         # 299 x 299 x 3  16x16x3
         x = self.Conv2d_1a_3x3(x)
-        # 149 x 149 x 32 16x16x32
+        # 149 x 149 x 32 16x16x32   16x16x16
         x = self.Conv2d_2a_3x3(x)
-        # 147 x 147 x 32 15x15x32
+        # 147 x 147 x 32 15x15x32   15x15x16
         x = self.Conv2d_2b_3x3(x)
         # 147 x 147 x 64 15x15x64
         # x = F.max_pool2d(x, kernel_size=3, stride=1)
@@ -328,8 +328,8 @@ class BasicConv2d(nn.Module):
 
 class DynamicConv2d(nn.Module):
 
-    def __init__(self, in_channels, out_channels, kernel_size=3, stride=1, padding=0,
-                bias=None, dynamic=False):
+    def __init__(self, in_channels, out_channels, pool_dim, kernel_size=3, stride=1, padding=0,
+                bias=None, dynamic=False, hash_size=8, num_tables=10):
         super(DynamicConv2d, self).__init__()
         # self.conv = nn.Conv2d(in_channels, out_channels, bias=False, **kwargs)
         self.dynamic = dynamic
@@ -339,9 +339,9 @@ class DynamicConv2d(nn.Module):
             out_channels, in_channels, kernel_size, kernel_size
             ), requires_grad=False)
             self.weight = Parameter(torch.Tensor(
-            int(out_channels / 2), in_channels, kernel_size, kernel_size
+            out_channels, in_channels, kernel_size, kernel_size
             ))
-            self.bn = nn.BatchNorm2d(int(out_channels / 2), eps=0.001)
+            self.bn = nn.BatchNorm2d(out_channels, eps=0.001)
 
         else:
             self.whole_w = Parameter(torch.Tensor(
@@ -349,6 +349,7 @@ class DynamicConv2d(nn.Module):
             self.weight = self.whole_w
             self.bn = nn.BatchNorm2d(out_channels, eps=0.001)
 
+        self.pool_dim = pool_dim
         self.stride = stride
         self.padding = padding
         self.bias = bias
@@ -357,10 +358,10 @@ class DynamicConv2d(nn.Module):
         # Hash table related
         # self.rm = Variable(torch.randn(self.L, self.K, self.P), requires_grad=False)
         # self.lsh = LSHash(8, 100, 27)
-        self.hash_size = 8 # K
-        self.num_tables = 10 # L
-        self.input_dim = 27
-        self.size_limit = 16
+        self.hash_size = hash_size # K
+        self.num_tables = num_tables # L
+        self.input_dim = int(kernel_size * kernel_size * in_channels)
+        self.size_limit = int(out_channels / 2)
         self.active_index = []
         self._init_random_matrix()
         self._init_hash_tables()
@@ -375,6 +376,7 @@ class DynamicConv2d(nn.Module):
         values = torch.Tensor(X.rvs(self.whole_w.data.numel()))
         values = values.view(self.whole_w.data.size())
         self.whole_w.data.copy_(values)
+        self.weight.data.zero_()
 
         # init LSH table and indexing channels
         self._indexing(self.whole_w)
@@ -426,7 +428,7 @@ class DynamicConv2d(nn.Module):
         # print('_w size: ', len(_w))
         # print('_w element size: ', _w[0].size())
         w = w.data.view(w.size()[0], -1)
-        print('w size: ', w.size())
+        # print('w size: ', w.size())
 
         dotproduct = torch.matmul(self.random_matrix, torch.transpose(w, 0, 1))
         signs = torch.sign(dotproduct)
@@ -449,10 +451,11 @@ class DynamicConv2d(nn.Module):
 
     def _querying(self, x):
         # print('input size: ', x.size())
-        x = F.avg_pool2d(x, 5)
+        x = F.avg_pool2d(x, self.pool_dim)
         # print('pooled size: ', x.size())
         x = x.data.view(x.size()[0], -1)
         x = torch.transpose(x, 0, 1)
+        # print('random_matrix: ', self.random_matrix.size())
         # print('x size: ', x.size())
         dotproduct = torch.matmul(self.random_matrix, x)
         hashes = F.relu(torch.sign(dotproduct))
@@ -485,16 +488,12 @@ class DynamicConv2d(nn.Module):
         return 1 - torch.matmul(x, y) / ((torch.matmul(x, x) * torch.matmul(y, y)) ** 0.5)
 
     def _select_active(self, indices):
-        idx_active = 0
         for i in indices:
-            self.weight.data[idx_active,:,:,:] = self.whole_w.data[i,:,:,:]
-            idx_active += 1
+            self.weight.data[i,:,:,:] = self.whole_w.data[i,:,:,:]
 
     def _update_params(self, indices):
-        idx_active = 0
         for i in indices:
-            self.whole_w.data[i,:,:,:] = self.weight.data[idx_active,:,:,:]
-            idx_active += 1
+            self.whole_w.data[i,:,:,:] = self.weight.data[i,:,:,:]
 
     def _to_signature(self, x):
         signature = 0
