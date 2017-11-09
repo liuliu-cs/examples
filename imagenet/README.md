@@ -55,3 +55,5 @@ optional arguments:
   -e, --evaluate        evaluate model on validation set
   --pretrained          use pre-trained model
 ```
+# Using downsampled ImageNet
+https://patrykchrabaszcz.github.io/Imagenet32/
