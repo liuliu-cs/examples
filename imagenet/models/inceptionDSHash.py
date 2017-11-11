@@ -488,6 +488,7 @@ class DynamicConv2d(nn.Module):
         return 1 - torch.matmul(x, y) / ((torch.matmul(x, x) * torch.matmul(y, y)) ** 0.5)
 
     def _select_active(self, indices):
+        self.weight.data.zero_()
         for i in indices:
             self.weight.data[i,:,:,:] = self.whole_w.data[i,:,:,:]
 

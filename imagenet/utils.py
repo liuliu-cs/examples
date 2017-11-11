@@ -38,9 +38,11 @@ class AverageMeter(object):
 
 class ImageNetDS(Dataset):
     """ImageNet downsampled dataset."""
-    def __init__(self, datafile, img_size, idx, mean_img=None, train=False):
+    def __init__(self, datafile, img_size, idx, mean_img=None, 
+                train=False, fp16=False):
         super(ImageNetDS, self).__init__()
         self.img_size = img_size
+        self.fp16 = fp16
         if train:
             self.img_dict = unpickle(datafile + str(idx))
             self.mean_img = self.img_dict['mean']
@@ -78,7 +80,7 @@ class ImageNetDS(Dataset):
         return {'image': self.image[idx], 'label': self.label[idx]}
 
 
-def load_mean(data_folder):
+def load_mean(data_folder, fp16=False):
     datafile = os.path.join(data_folder, 'train_data_batch_1')
     d = unpickle(datafile)
     mean = d['mean']

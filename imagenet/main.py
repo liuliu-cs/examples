@@ -64,6 +64,8 @@ parser.add_argument('--dist-backend', default='gloo', type=str,
                     help='distributed backend')
 parser.add_argument('--plot', default='results', type=str,
                     help='specify the filename of plot')
+parser.add_argument('--fp16', dest='fp16', action='store_true',
+                    help='use half-precision FP16')
 
 best_prec1 = 0
 use_cuda = torch.cuda.is_available()
@@ -109,6 +111,11 @@ def main():
     # define loss function (criterion) and optimizer
     criterion = nn.CrossEntropyLoss().cuda()
 
+    if args.fp16:
+        print('Using FP16')
+        model = model.cuda().half()
+        # criterion = criterion.cuda().half()
+
     optimizer = torch.optim.SGD(model.parameters(), args.lr,
                                 momentum=args.momentum,
                                 weight_decay=args.weight_decay)
@@ -135,7 +142,8 @@ def main():
     train_datafile = os.path.join(datafile, 'train_data_batch_')
     mean_img = load_mean(datafile)
 
-    val_dataset = ImageNetDS(val_datafile, '16x16', 1, mean_img=mean_img, train=False)
+    val_dataset = ImageNetDS(val_datafile, '16x16', 1, mean_img=mean_img, 
+                    train=False)
     val_loader = DataLoader(val_dataset, batch_size=args.batch_size,
                             shuffle=False, num_workers=args.workers)
 
@@ -208,6 +216,8 @@ def train(train_loader, model, criterion, optimizer, epoch, data_batch_i):
     # for i, (input, target) in enumerate(train_loader):
     for i, sample_batched in enumerate(train_loader):
         input = sample_batched['image']
+        if args.fp16:
+            input = input.cuda().half()
         target = sample_batched['label']
         # measure data loading time
         data_time.update(time.time() - end)
@@ -263,10 +273,13 @@ def validate(val_loader, model, criterion):
         input = sample_batched['image']
         target = sample_batched['label']
         target = target.cuda(async=True)
+        if args.fp16:
+            input = input.cuda().half()
+        # compute output
         input_var = torch.autograd.Variable(input, volatile=True)
         target_var = torch.autograd.Variable(target, volatile=True)
 
-        # compute output
+        # print(input_var.data.type())
         output = model(input_var)
         loss = criterion(output, target_var)
 
