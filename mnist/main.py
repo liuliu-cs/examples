@@ -7,6 +7,8 @@ import torch.optim as optim
 from torchvision import datasets, transforms
 from torch.autograd import Variable
 
+from mnist import MNIST8M
+
 if __name__ == '__main__':
     # Training settings
     parser = argparse.ArgumentParser(description='PyTorch MNIST Example')
@@ -16,6 +18,8 @@ if __name__ == '__main__':
                         help='input batch size for testing (default: 1000)')
     parser.add_argument('--epochs', type=int, default=10, metavar='N',
                         help='number of epochs to train (default: 10)')
+    parser.add_argument('--nhid', type=int, default=50, metavar='H',
+                        help='hidden layer size (default: 50)')
     parser.add_argument('--lr', type=float, default=0.01, metavar='LR',
                         help='learning rate (default: 0.01)')
     parser.add_argument('--momentum', type=float, default=0.5, metavar='M',
@@ -36,14 +40,14 @@ if __name__ == '__main__':
     
     kwargs = {'num_workers': 1, 'pin_memory': True} if args.cuda else {}
     train_loader = torch.utils.data.DataLoader(
-        datasets.MNIST('../data', train=True, download=True,
+        MNIST8M('./infimnist', train=True, download=True,
                        transform=transforms.Compose([
                            transforms.ToTensor(),
                            transforms.Normalize((0.1307,), (0.3081,))
                        ])),
         batch_size=args.batch_size, shuffle=True, **kwargs)
     test_loader = torch.utils.data.DataLoader(
-        datasets.MNIST('../data', train=False, transform=transforms.Compose([
+        MNIST8M('./infimnist', train=False, transform=transforms.Compose([
                            transforms.ToTensor(),
                            transforms.Normalize((0.1307,), (0.3081,))
                        ])),
@@ -67,8 +71,28 @@ if __name__ == '__main__':
             x = F.dropout(x, training=self.training)
             x = self.fc2(x)
             return F.log_softmax(x)
+ 
+    class MLP(nn.Module):
+        def __init__(self, nhid=50):
+            super(MLP, self).__init__()
+            self.fc1 = nn.Linear(784, nhid)
+            self.fc2 = nn.Linear(nhid, nhid)
+            self.fc3 = nn.Linear(nhid, nhid)
+            self.classifier = nn.Linear(nhid, 10)
     
-    model = Net()
+        def forward(self, x):
+            # print('input : ', x.size())
+            x = x.view(-1, 784)
+            x = self.fc1(x)
+            x = self.fc2(x)
+            # x = F.dropout(x, training=self.training)
+            x = self.fc3(x)
+            # x = F.dropout(x, training=self.training)
+            x = self.classifier(x)
+            return F.log_softmax(x) 
+
+
+    model = MLP(args.nhid)
     if args.cuda:
         model.cuda()
     
@@ -104,11 +128,17 @@ if __name__ == '__main__':
             correct += pred.eq(target.data.view_as(pred)).cpu().sum()
     
         test_loss /= len(test_loader.dataset)
-        print('\nTest set: Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n'.format(
+        print('\nTest set: Average loss: {:.4f}, Accuracy: {}/{} ({:.1f}%)\n'.format(
             test_loss, correct, len(test_loader.dataset),
             100. * correct / len(test_loader.dataset)))
+        return 100. * correct / len(test_loader.dataset)
     
     
+    best_acc = 0
     for epoch in range(1, args.epochs + 1):
         train(epoch)
-        test()
+        test_acc = test()
+        if test_acc > best_acc:
+            best_acc = test_acc
+
+    print('best_acc: {:.1f}\n'.format(best_acc))
